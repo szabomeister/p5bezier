@@ -143,6 +143,23 @@ function addLineSegment() {
   slider.value(spline_members);
 }
 
+function drawPoints(subpoints) {
+   let prev = subpoints[0];
+   for (let t = 0; t< 1 ; t+=0.1) { //2
+     if (!is_control_line_hidden) {
+       drawControllines(sub_points);
+     }
+     let pt = calculatePoint(sub_points, t); // points, t
+      
+     stroke(120,0,0);
+     strokeWeight(3);
+     line(prev.x, prev.y, pt.x, pt.y);
+     prev = pt;
+     //circle(pt.x, pt.y, 1);
+     strokeWeight(1);
+   }
+}
+
 function draw() {
    background(20,20,20);
   if (points.length !=0 && !is_control_hidden) {
@@ -179,17 +196,18 @@ function draw() {
     let prev = points[0];
     for (let t = 0; t< Math.floor(points.length / 4) ; t+=0.01) { //2
       let integral_part = Math.floor(t);
-      let remainder_part = t - integral_part;
+      ///let remainder_part = t - integral_part;
       sub_points = points.slice(4* integral_part, 4* (integral_part+1));
-      if (!is_control_line_hidden) {
-        drawControllines(sub_points);
-      }
-      let pt = calculatePoint(sub_points, remainder_part); // points, t
+      ///if (!is_control_line_hidden) {
+      ///  drawControllines(sub_points);
+      ///}
+      ///let pt = calculatePoint(sub_points, remainder_part); // points, t
       
-      stroke(120,200,0);
-      line(prev.x, prev.y, pt.x, pt.y);
-      prev = pt;
+      ///stroke(120,200,0);
+      ///line(prev.x, prev.y, pt.x, pt.y);
+      ///prev = pt;
       //circle(pt.x, pt.y, 1);
+      drawPoints(sub_points);
     }
   }
 }
