@@ -4,6 +4,8 @@ let points = Array();
 let dragged_index=0;
 let spline_members = 3;
 let selected_index;
+let is_control_hidden = false;
+let is_control_line_hidden = false;
 
 class Point {
   constructor(x,y) {
@@ -108,9 +110,23 @@ function disjoint() {
   }
 }
 
+function toggleHideControl() {
+  is_control_hidden = !is_control_hidden;
+}
+
+function toggleHideControlLine() {
+  is_control_line_hidden = !is_control_line_hidden;
+}
+
 function keyPressed() {
   if (key == 'd' ) {
     disjoint();
+  }
+  else if (key == 'h') {
+    toggleHideControl();
+  }
+  else if (key == 'c') {
+    toggleHideControlLine();
   }
 }
 
@@ -129,7 +145,7 @@ function addLineSegment() {
 
 function draw() {
    background(20,20,20);
-  if (points.length !=0) {
+  if (points.length !=0 && !is_control_hidden) {
     for (let p in points) {
       stroke(0,0,200);
       fill(0,255,0);
@@ -165,9 +181,12 @@ function draw() {
       let integral_part = Math.floor(t);
       let remainder_part = t - integral_part;
       sub_points = points.slice(4* integral_part, 4* (integral_part+1));
-      drawControllines(sub_points);
+      if (!is_control_line_hidden) {
+        drawControllines(sub_points);
+      }
       let pt = calculatePoint(sub_points, remainder_part); // points, t
       
+      stroke(120,200,0);
       line(prev.x, prev.y, pt.x, pt.y);
       prev = pt;
       //circle(pt.x, pt.y, 1);
