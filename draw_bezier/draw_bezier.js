@@ -9,6 +9,7 @@ let is_control_hidden = false;
 let is_control_line_hidden = false;
 let is_mirror_mode = false;
 let is_velocity_hidden = false;
+let is_hermite = false;
 
 class Point {
   constructor(x,y) {
@@ -47,7 +48,25 @@ class LineSegment {
   }
 }
 
-function calculatePoint(pts, t) {
+function calculatePoints(pts, t) {
+  if (!is_hermite) {
+    return calculateBezier(pts, t);
+  }
+  else {
+    return calculateHermite(pts, t);
+  }
+}
+
+function calculateFirstDerivative(pts, t) {
+  if (!is_hermite) {
+    return firstDerivative(pts, t);
+  }
+  else {
+    return firstDerivativeHermite(pts, t);
+  }
+}
+
+function calculateBezier(pts, t) {
   let p0 = pts[0];
   let p1 = pts[1];
   let p2 = pts[2];
@@ -75,8 +94,23 @@ function calculateHermite(pts, t) {
   let p1 = pts[1];
   let p2 = pts[3];
   let p3 = pts[2];
-  let px = p0.x*(1 -3*t**2 +2*t**3)+p1.x*(t-2*t**2 +t**3)+p2.x*(3*t**2-2*t**3)+p3.x*(-1*t**2+t**3);
-  let py = p0.y*(1-3*t**2+2*t**3)+p1.y*(t-2*t**2+t**3)+p2.y*(3*t**2-2*t**3)+p3.y*(-1*t**2+t**3);
+  let v0 = new Point((p1.x -p0.x), (p1.y -p0.y));
+  let v1 = new Point((p2.x -p3.x), (p2.y -p3.y));
+  let px = p0.x*(1 -3*t**2 +2*t**3)+v0.x*(t-2*t**2 +t**3)+p2.x*(3*t**2-2*t**3)+v1.x*(-1*t**2+t**3);
+  let py = p0.y*(1-3*t**2+2*t**3)+v0.y*(t-2*t**2+t**3)+p2.y*(3*t**2-2*t**3)+v1.y*(-1*t**2+t**3);
+  tmp = new Point(px, py);
+  return tmp;
+}
+
+function firstDerivativeHermite(pts, t) {
+  let p0 = pts[0];
+  let p1 = pts[1];
+  let p2 = pts[3];
+  let p3 = pts[2];
+  let v0 = new Point(p1.x -p0.x, p1.y -p0.y);
+  let v1 = new Point(p2.x -p3.x, p2.y -p3.y);
+  let px = p0.x*( -6*pow(t,1) +6*pow(t,2) )+v0.x*(1 -4*pow(t, 1) +3*pow(t, 2))+p2.x*(6*pow(t,1)-6*pow(t,2))+v1.x*(-2*pow(t,1)+3*pow(t,2));
+  let py = p0.y*( -6*pow(t,1) +6*pow(t,2) )+v0.y*(1 -4*pow(t, 1) +3*pow(t, 2))+p2.y*(6*pow(t,1)-6*pow(t,2))+v1.y*(-2*pow(t,1)+3*pow(t,2));
   tmp = new Point(px, py);
   return tmp;
 }
@@ -174,6 +208,10 @@ function toggleVelocity() {
   is_velocity_hidden = !is_velocity_hidden;
 }
 
+function toggleStyle() {
+  is_hermite = !is_hermite;
+}
+
 function enterMirrorMode() {
   if (selected_index !== null && !(points[selected_index] instanceof ControlPoint)) {
     is_mirror_mode = true;
@@ -195,6 +233,9 @@ function keyPressed() {
   }
   else if (key == 'v') {
     toggleVelocity();
+  }
+  else if (key == 's') {
+    toggleStyle();
   }
   else if (keyCode === ESCAPE) {
     selected_index = null;
@@ -220,7 +261,7 @@ function drawPoints(subpoints) {
      if (!is_control_line_hidden) {
        drawControllines(sub_points);
      }
-     let pt = calculatePoint(sub_points, t); // points, t
+     let pt = calculatePoints(sub_points, t); // points, t
       
      stroke(120,0,0);
      strokeWeight(3);
@@ -228,6 +269,14 @@ function drawPoints(subpoints) {
      prev = pt;
      //circle(pt.x, pt.y, 1);
      strokeWeight(1);
+         let der = calculateFirstDerivative(sub_points, t);
+    let der_len = Math.sqrt(der.x**2 + der.y**2);
+    // make it unit length then scale by 100 to be visible
+    der.x = 100*(der.x / der_len);
+    der.y = 100*(der.y / der_len);
+    let normal = new Point(der.y, -der.x);
+    circle(pt.x+ 0.2*normal.x, pt.y+ 0.2*normal.y, 4);
+    circle(pt.x- 0.2*normal.x, pt.y- 0.2*normal.y, 4);
    }
 }
 
@@ -270,12 +319,12 @@ function draw() {
     integral_part = Math.floor(slider.value());
     remainder_part = slider.value() - integral_part;
     sub_points = points.slice(4* integral_part, 4* (integral_part+1));
-    let bpt = calculatePoint(sub_points, remainder_part); // points, slider.value()
+    let bpt = calculatePoints(sub_points, remainder_part); // points, slider.value()
     fill(255);
     circle(bpt.x, bpt.y, 10);
     // show velocity through first derivative
     if (!is_velocity_hidden) {
-    let der = firstDerivative(sub_points, remainder_part);
+    let der = calculateFirstDerivative(sub_points, remainder_part);
     let der_len = Math.sqrt(der.x**2 + der.y**2);
     // make it unit length then scale by 100 to be visible
     der.x = 100*(der.x / der_len);
@@ -285,8 +334,12 @@ function draw() {
     line(bpt.x, bpt.y, bpt.x +der.x, bpt.y +der.y);
     line(bpt.x, bpt.y, bpt.x +normal.x, bpt.y +normal.y);
     stroke(100,50, 10);
-    circle(bpt.x+ 0.2*normal.x, bpt.y+ 0.2*normal.y, 4);
-    circle(bpt.x- 0.2*normal.x, bpt.y- 0.2*normal.y, 4);
+    //circle(bpt.x+ der.x + 0.2*normal.x, bpt.y + der.y + 0.2*normal.y, 4);
+    //circle(bpt.x+ der.x - 0.2*normal.x, bpt.y + der.y - 0.2*normal.y, 4);
+    triangle(bpt.x+ der.x + 0.2*normal.x, bpt.y + der.y + 0.2*normal.y,
+             bpt.x+ 1.2* der.x, bpt.y+ 1.2* der.y,
+             bpt.x+ der.x - 0.2*normal.x, bpt.y + der.y - 0.2*normal.y
+             );
     }
     
     let prev = points[0];
